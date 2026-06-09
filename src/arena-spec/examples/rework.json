@@ -1,0 +1,59 @@
+{
+  "name": "ReworkLoop",
+  "timeUnits": "Minutes",
+  "replications": 10,
+  "replicationLength": 960,
+  "entities": [
+    { "id": "part", "name": "Part" }
+  ],
+  "resources": [
+    { "id": "machine", "name": "Machine", "capacity": 1 },
+    { "id": "inspector", "name": "Inspector", "capacity": 1 }
+  ],
+  "flow": [
+    {
+      "id": "Arrival",
+      "type": "create",
+      "entity": "part",
+      "arrival": {
+        "distribution": { "type": "EXPO", "params": [10] }
+      }
+    },
+    {
+      "id": "Process",
+      "type": "process",
+      "resource": "machine",
+      "delay": {
+        "distribution": { "type": "NORM", "params": [7, 1.5] },
+        "units": "Minutes"
+      }
+    },
+    {
+      "id": "Inspection",
+      "type": "decide",
+      "branches": [
+        { "type": "probability", "value": 0.1 }
+      ]
+    },
+    {
+      "id": "Rework",
+      "type": "process",
+      "resource": "machine",
+      "delay": {
+        "distribution": { "type": "TRIA", "params": [3, 5, 7] },
+        "units": "Minutes"
+      }
+    },
+    {
+      "id": "Exit",
+      "type": "dispose"
+    }
+  ],
+  "connections": [
+    ["Arrival", "Process"],
+    ["Process", "Inspection"],
+    ["Inspection", "Exit"],
+    ["Inspection", "Rework"],
+    ["Rework", "Inspection"]
+  ]
+}

@@ -14,6 +14,9 @@ import { applyPatch, writeFileSafe } from "./filesystem/writer.js";
 import { generateDiff, formatDiff } from "./filesystem/diff.js";
 import { createBackup, listBackups, restoreBackup } from "./filesystem/backup.js";
 import { isPathInWorkspace } from "./filesystem/workspace.js";
+import { compileSpec } from "./arena-spec/compiler.js";
+import { validateSpec } from "./arena-spec/validator.js";
+import type { ArenaModelSpec } from "./arena-spec/schema.js";
 import path from "path";
 import fs from "fs";
 
@@ -203,6 +206,72 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "file_backup_list": {
         const backups = listBackups();
         result = { backups };
+        break;
+      }
+
+      // --- Arena Spec tools ---
+      case "arena_validate_spec": {
+        const spec = args?.spec as ArenaModelSpec;
+        const validation = validateSpec(spec);
+        result = validation;
+        break;
+      }
+
+      case "arena_build_model": {
+        const spec = args?.spec as ArenaModelSpec;
+        const saveAs = args?.saveAs as string | undefined;
+        const runAfter = args?.runAfterBuild === true;
+
+        // 1. Validate
+        const validation = validateSpec(spec);
+        if (!validation.valid) {
+          return err(`Spec validation failed:\n${validation.errors.map((e) => `  - ${e}`).join("\n")}`);
+        }
+
+        // 2. Compile to build plan
+        const plan = compileSpec(spec, saveAs);
+
+        // 3. Execute build plan
+        await callBridge("openArena", { visible: false }, BRIDGE_TIMEOUTS.openArena);
+        await callBridge("createNewModel");
+
+        for (const step of plan.steps) {
+          switch (step.type) {
+            case "createModule":
+              await callBridge("createModule", step.params, BRIDGE_TIMEOUTS.createModule);
+              break;
+            case "setProperty":
+              await callBridge("setModuleProperty", step.params, BRIDGE_TIMEOUTS.setModuleProperty);
+              break;
+            case "addConnection":
+              await callBridge("addConnection", step.params);
+              break;
+            case "setReplicationLength":
+              await callBridge("setReplicationLength", step.params);
+              break;
+            case "saveModel":
+              await callBridge("saveModel", step.params, BRIDGE_TIMEOUTS.saveModel);
+              break;
+            case "createEntity":
+            case "createResource":
+              // Data module operations - currently placeholder
+              break;
+          }
+        }
+
+        // 4. Run if requested
+        if (runAfter) {
+          await callBridge("runModel", { batchMode: true, quietMode: true }, BRIDGE_TIMEOUTS.runModel);
+        }
+
+        result = {
+          modelName: spec.name,
+          modules: plan.modules,
+          steps: plan.steps.length,
+          savedAs: saveAs || `${spec.name}.doe`,
+          ranSimulation: runAfter,
+          warnings: validation.warnings,
+        };
         break;
       }
 

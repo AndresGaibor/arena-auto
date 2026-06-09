@@ -157,4 +157,17 @@ export const fileTools: ToolDefinition[] = [
   },
 ];
 
-export const allTools = [...arenaTools, ...fileTools];
+export const specTools: ToolDefinition[] = [
+  {
+    name: "arena_validate_spec",
+    description: "Validate an ArenaModelSpec without building it",
+    inputSchema: toolSchemas.arena_validate_spec,
+  },
+  {
+    name: "arena_build_model",
+    description: "Compile and build a complete Arena model from an ArenaModelSpec",
+    inputSchema: toolSchemas.arena_build_model,
+  },
+];
+
+export const allTools = [...arenaTools, ...fileTools, ...specTools];

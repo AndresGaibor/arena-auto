@@ -1,0 +1,46 @@
+{
+  "name": "MM1_Queue",
+  "timeUnits": "Minutes",
+  "replications": 5,
+  "replicationLength": 480,
+  "entities": [
+    {
+      "id": "customer",
+      "name": "Customer"
+    }
+  ],
+  "resources": [
+    {
+      "id": "server",
+      "name": "Server",
+      "capacity": 1
+    }
+  ],
+  "flow": [
+    {
+      "id": "Arrival",
+      "type": "create",
+      "entity": "customer",
+      "arrival": {
+        "distribution": { "type": "EXPO", "params": [5] }
+      }
+    },
+    {
+      "id": "Service",
+      "type": "process",
+      "resource": "server",
+      "delay": {
+        "distribution": { "type": "EXPO", "params": [4] },
+        "units": "Minutes"
+      }
+    },
+    {
+      "id": "Exit",
+      "type": "dispose"
+    }
+  ],
+  "connections": [
+    ["Arrival", "Service"],
+    ["Service", "Exit"]
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "name": "MultiServerQueue",
+  "timeUnits": "Minutes",
+  "replications": 5,
+  "replicationLength": 480,
+  "entities": [
+    {
+      "id": "customer",
+      "name": "Customer"
+    }
+  ],
+  "resources": [
+    {
+      "id": "teller",
+      "name": "Teller",
+      "capacity": 3
+    }
+  ],
+  "flow": [
+    {
+      "id": "Arrival",
+      "type": "create",
+      "entity": "customer",
+      "arrival": {
+        "distribution": { "type": "EXPO", "params": [2] }
+      }
+    },
+    {
+      "id": "Service",
+      "type": "process",
+      "resource": "teller",
+      "delay": {
+        "distribution": { "type": "TRIA", "params": [3, 5, 8] },
+        "units": "Minutes"
+      }
+    },
+    {
+      "id": "Exit",
+      "type": "dispose"
+    }
+  ],
+  "connections": [
+    ["Arrival", "Service"],
+    ["Service", "Exit"]
+  ]
+}

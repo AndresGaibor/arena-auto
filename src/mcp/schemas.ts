@@ -220,4 +220,54 @@ export const toolSchemas = {
     type: "object" as const,
     properties: {},
   },
+
+  // --- Arena Model Spec tools ---
+  arena_validate_spec: {
+    type: "object" as const,
+    properties: {
+      spec: {
+        type: "object" as const,
+        description: "ArenaModelSpec object to validate",
+        properties: {
+          name: { type: "string" as const },
+          timeUnits: { type: "string" as const },
+          replications: { type: "number" as const },
+          replicationLength: { type: "number" as const },
+          entities: { type: "array" as const },
+          resources: { type: "array" as const },
+          flow: { type: "array" as const },
+          connections: { type: "array" as const },
+        },
+        required: ["name", "flow", "connections"],
+      },
+    },
+    required: ["spec"],
+  },
+
+  arena_build_model: {
+    type: "object" as const,
+    properties: {
+      spec: {
+        type: "object" as const,
+        description: "ArenaModelSpec to compile and build",
+        properties: {
+          name: { type: "string" as const },
+          timeUnits: { type: "string" as const },
+          replications: { type: "number" as const },
+          replicationLength: { type: "number" as const },
+          entities: { type: "array" as const },
+          resources: { type: "array" as const },
+          queues: { type: "array" as const },
+          variables: { type: "array" as const },
+          schedules: { type: "array" as const },
+          flow: { type: "array" as const },
+          connections: { type: "array" as const },
+        },
+        required: ["name", "flow", "connections"],
+      },
+      saveAs: { type: "string" as const, description: "Path to save the .doe file" },
+      runAfterBuild: { type: "boolean" as const, description: "Run simulation after building", default: false },
+    },
+    required: ["spec"],
+  },
 };
