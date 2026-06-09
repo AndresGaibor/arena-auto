@@ -4,15 +4,11 @@ import { getWorkspaceRoot } from "../utils/paths.js";
 
 export function isPathInWorkspace(targetPath: string): { ok: true; resolved: string } | { ok: false; reason: string } {
   const workspace = getWorkspaceRoot();
-  const resolved = path.resolve(targetPath);
+  const resolved = path.isAbsolute(targetPath)
+    ? path.resolve(targetPath)
+    : path.join(workspace, targetPath);
 
   if (!path.relative(workspace, resolved).startsWith("..")) {
-    return { ok: true, resolved };
-  }
-
-  // also allow project-relative paths (for development)
-  const projectRoot = path.resolve(import.meta.dirname, "..", "..");
-  if (!path.relative(projectRoot, resolved).startsWith("..")) {
     return { ok: true, resolved };
   }
 

@@ -6,6 +6,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BACKUP_ROOT = path.resolve(__dirname, "..", "..", ".arena-auto", "backups");
 
 export type BackupManifest = {
+  id: string;
   createdAt: string;
   operation: string;
   files: Array<{
@@ -36,6 +37,7 @@ export function createBackup(filePath: string, operation = "file_edit"): BackupM
   }
 
   const manifest: BackupManifest = {
+    id: timestamp,
     createdAt: new Date().toISOString(),
     operation,
     files: [{ original: filePath, backup: backupName }],

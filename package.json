@@ -19,6 +19,7 @@
     "test:integration": "bun test tests/integration"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0"
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "winax": "^3.6.9"
   }
 }

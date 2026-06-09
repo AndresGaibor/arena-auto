@@ -31,6 +31,14 @@ function setArena(a) {
     arena = a;
 }
 
+function hasArena() {
+    return arena !== null;
+}
+
+function hasModel() {
+    return model !== null;
+}
+
 module.exports = {
     ActiveXObject,
     getArena,
@@ -39,4 +47,6 @@ module.exports = {
     setModel,
     clearModel,
     clearArena,
+    hasArena,
+    hasModel,
 };

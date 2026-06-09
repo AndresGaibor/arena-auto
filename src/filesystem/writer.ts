@@ -64,7 +64,7 @@ export function applyPatch(
 
   if (options.createBackup !== false) {
     const manifest = createBackup(filePath, "file_patch");
-    backupId = manifest.createdAt;
+    backupId = manifest.id;
   }
 
   // Atomic write: write to temp file first, then rename
@@ -90,7 +90,7 @@ export function writeFileSafe(
   let backupId: string | undefined;
   if (options.createBackup !== false && fileExists(resolved)) {
     const manifest = createBackup(filePath, "file_write");
-    backupId = manifest.createdAt;
+    backupId = manifest.id;
   }
 
   // Ensure parent directory exists

@@ -61,8 +61,8 @@ const handlers = {
         return {
             ok: true,
             message: "pong",
-            arenaOpen: lifecycle.getArena() !== null,
-            modelOpen: lifecycle.getModel() !== null,
+            arenaOpen: lifecycle.hasArena(),
+            modelOpen: lifecycle.hasModel(),
         };
     },
 };

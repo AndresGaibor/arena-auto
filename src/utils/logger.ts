@@ -39,11 +39,7 @@ export function log(level: LogLevel, message: string, meta?: Record<string, unkn
   if (!shouldLog(level)) return;
   const line = formatEntry(level, message, meta);
 
-  if (level === LogLevel.ERROR) {
-    process.stderr.write(line);
-  } else {
-    process.stdout.write(line);
-  }
+  process.stderr.write(line);
 
   try {
     ensureLogDir();
