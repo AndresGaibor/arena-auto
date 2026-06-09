@@ -1,0 +1,64 @@
+{
+  "name": "{{modelName}}",
+  "description": "Batch processing with assembly and separation",
+  "timeUnits": "{{timeUnits}}",
+  "replications": {{replications}},
+  "replicationLength": {{replicationLength}},
+  "entities": [
+    {
+      "id": "item",
+      "name": "{{entityName}}"
+    }
+  ],
+  "flow": [
+    {
+      "id": "Arrival",
+      "type": "create",
+      "entity": "item",
+      "arrival": {
+        "distribution": { "type": "EXPO", "params": [{{arrivalMean}}] }
+      }
+    },
+    {
+      "id": "BatchOp",
+      "type": "batch",
+      "batchSize": {{batchSize}},
+      "rule": "Any Entity"
+    },
+    {
+      "id": "ProcessBatch",
+      "type": "process",
+      "delay": {
+        "distribution": { "type": "{{processDist}}", "params": [{{processParam1}}, {{processParam2}}] },
+        "units": "{{timeUnits}}"
+      }
+    },
+    {
+      "id": "SeparateOp",
+      "type": "separate",
+      "duplicates": {{batchSize}}
+    },
+    {
+      "id": "Exit",
+      "type": "dispose"
+    }
+  ],
+  "connections": [
+    ["Arrival", "BatchOp"],
+    ["BatchOp", "ProcessBatch"],
+    ["ProcessBatch", "SeparateOp"],
+    ["SeparateOp", "Exit"]
+  ],
+  "_params": {
+    "modelName": { "default": "BatchProcessing", "description": "Model name" },
+    "entityName": { "default": "Item", "description": "Entity type name" },
+    "arrivalMean": { "default": 2, "description": "Mean interarrival time" },
+    "batchSize": { "default": 5, "description": "Number of items per batch" },
+    "processDist": { "default": "NORM", "description": "Batch process time distribution" },
+    "processParam1": { "default": 3, "description": "Mean process time" },
+    "processParam2": { "default": 0.5, "description": "Standard deviation" },
+    "timeUnits": { "default": "Minutes", "description": "Time unit" },
+    "replications": { "default": 5, "description": "Number of replications" },
+    "replicationLength": { "default": 960, "description": "Length of each replication" }
+  }
+}

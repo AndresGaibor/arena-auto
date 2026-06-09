@@ -222,6 +222,22 @@ export const toolSchemas = {
   },
 
   // --- Arena Model Spec tools ---
+  arena_list_templates: {
+    type: "object" as const,
+    properties: {},
+  },
+
+  arena_create_from_template: {
+    type: "object" as const,
+    properties: {
+      templateId: { type: "string" as const, description: "Template ID (use arena_list_templates to discover)" },
+      params: { type: "object" as const, description: "Parameter overrides (key-value pairs)" },
+      saveAs: { type: "string" as const, description: "Path to save the .doe file" },
+      runAfterBuild: { type: "boolean" as const, description: "Run simulation after building", default: false },
+    },
+    required: ["templateId"],
+  },
+
   arena_validate_spec: {
     type: "object" as const,
     properties: {
@@ -242,6 +258,16 @@ export const toolSchemas = {
       },
     },
     required: ["spec"],
+  },
+
+  arena_generate_capability_catalog: {
+    type: "object" as const,
+    properties: {},
+  },
+
+  arena_capabilities_read: {
+    type: "object" as const,
+    properties: {},
   },
 
   arena_build_model: {
@@ -269,5 +295,126 @@ export const toolSchemas = {
       runAfterBuild: { type: "boolean" as const, description: "Run simulation after building", default: false },
     },
     required: ["spec"],
+  },
+
+  // --- Results tools ---
+  arena_extract_results: {
+    type: "object" as const,
+    properties: {},
+  },
+
+  arena_get_summary: {
+    type: "object" as const,
+    properties: {},
+  },
+
+  arena_diagnose_model: {
+    type: "object" as const,
+    properties: {},
+  },
+
+  arena_generate_report: {
+    type: "object" as const,
+    properties: {},
+  },
+
+  // --- Scenario tools ---
+  arena_run_experiment: {
+    type: "object" as const,
+    properties: {
+      baseSpec: {
+        type: "object" as const,
+        description: "Base ArenaModelSpec to use as template",
+        properties: {
+          name: { type: "string" as const },
+          timeUnits: { type: "string" as const },
+          replications: { type: "number" as const },
+          replicationLength: { type: "number" as const },
+          entities: { type: "array" as const },
+          resources: { type: "array" as const },
+          flow: { type: "array" as const },
+          connections: { type: "array" as const },
+        },
+        required: ["name", "flow", "connections"],
+      },
+      scenarios: {
+        type: "array" as const,
+        items: {
+          type: "object" as const,
+          properties: {
+            name: { type: "string" as const, description: "Scenario name" },
+            description: { type: "string" as const, description: "Optional description" },
+            patches: {
+              type: "array" as const,
+              items: {
+                type: "object" as const,
+                properties: {
+                  path: { type: "string" as const, description: "Dot-notation path (e.g. resources[0].capacity)" },
+                  value: { type: "number" as const },
+                },
+                required: ["path", "value"],
+              },
+            },
+          },
+          required: ["name", "patches"],
+        },
+        description: "Array of scenario definitions with patch sets",
+      },
+    },
+    required: ["baseSpec", "scenarios"],
+  },
+
+  arena_repair_spec: {
+    type: "object" as const,
+    properties: {
+      spec: { type: "object" as const, description: "ArenaModelSpec to repair" },
+      autoFix: { type: "boolean" as const, description: "Apply automatic fixes", default: true },
+    },
+    required: ["spec"],
+  },
+
+  arena_explain_spec_errors: {
+    type: "object" as const,
+    properties: {
+      spec: { type: "object" as const, description: "ArenaModelSpec to explain errors for" },
+    },
+    required: ["spec"],
+  },
+
+  arena_list_doe_templates: {
+    type: "object" as const,
+    properties: {},
+  },
+
+  arena_clone_doe_template: {
+    type: "object" as const,
+    properties: {
+      templateId: { type: "string" as const, description: "Template ID from arena_list_doe_templates" },
+      saveAs: { type: "string" as const, description: "Path to save the cloned .doe file (within workspace)" },
+    },
+    required: ["templateId", "saveAs"],
+  },
+
+  arena_get_siman_source: {
+    type: "object" as const,
+    properties: {},
+  },
+
+  arena_get_siman_blocks: {
+    type: "object" as const,
+    properties: {},
+  },
+
+  arena_get_vba_macros: {
+    type: "object" as const,
+    properties: {},
+  },
+
+  arena_run_vba_macro: {
+    type: "object" as const,
+    properties: {
+      macroName: { type: "string" as const, description: "Name of the VBA macro to execute" },
+    },
+    required: ["macroName"],
   },
 };

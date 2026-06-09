@@ -5,6 +5,7 @@ const modules = require("./arena/modules.cjs");
 const simulation = require("./arena/simulation.cjs");
 const results = require("./arena/results.cjs");
 const data = require("./arena/data.cjs");
+const siman = require("./arena/siman.cjs");
 
 const handlers = {
     // --- Arena lifecycle ---
@@ -35,6 +36,7 @@ const handlers = {
     saveModel: models.saveModel,
     getModelInfo: models.getModelInfo,
     exploreCom: models.exploreCom,
+    generateCapabilityCatalog: models.generateCapabilityCatalog,
 
     // --- Module operations ---
     createModule: modules.createModule,
@@ -51,6 +53,10 @@ const handlers = {
     // --- Data ---
     createResource: data.createResource,
     createEntity: data.createEntity,
+    createQueue: data.createQueue,
+    createSchedule: data.createSchedule,
+    createSet: data.createSet,
+    createFailure: data.createFailure,
 
     // --- Results ---
     getModelResults: results.getModelResults,
@@ -60,6 +66,15 @@ const handlers = {
     listVariables: results.listVariables,
     getQueueLength: results.getQueueLength,
     getResourceState: results.getResourceState,
+    extractResults: results.extractResults,
+    extractResultsViaReport: results.extractResultsViaReport,
+
+    // --- SIMAN / VBA ---
+    getSimanSource: siman.getSimanSource,
+    getSimanBlocks: siman.getSimanBlocks,
+    getVbaMacros: siman.getVbaMacros,
+    runVbaMacro: siman.runVbaMacro,
+    getSimanElement: siman.getSimanElement,
 
     // --- Ping ---
     ping() {

@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { isPathInWorkspace } from "./workspace.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BACKUP_ROOT = path.resolve(__dirname, "..", "..", ".arena-auto", "backups");
@@ -11,6 +12,7 @@ export type BackupManifest = {
   operation: string;
   files: Array<{
     original: string;
+    resolvedOriginal: string;
     backup: string;
   }>;
 };
@@ -22,13 +24,16 @@ function ensureBackupDir(): void {
 }
 
 export function createBackup(filePath: string, operation = "file_edit"): BackupManifest {
+  const check = isPathInWorkspace(filePath);
+  if (!check.ok) throw new Error(check.reason);
+
   ensureBackupDir();
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
   const backupDir = path.join(BACKUP_ROOT, timestamp);
   fs.mkdirSync(backupDir, { recursive: true });
 
-  const resolvedPath = path.resolve(filePath);
+  const resolvedPath = check.resolved;
   const backupName = path.basename(resolvedPath).replace(/\./g, "_") + ".bak";
   const backupPath = path.join(backupDir, backupName);
 
@@ -40,7 +45,7 @@ export function createBackup(filePath: string, operation = "file_edit"): BackupM
     id: timestamp,
     createdAt: new Date().toISOString(),
     operation,
-    files: [{ original: filePath, backup: backupName }],
+    files: [{ original: filePath, resolvedOriginal: resolvedPath, backup: backupName }],
   };
 
   fs.writeFileSync(
@@ -97,7 +102,7 @@ export function restoreBackup(backupId: string): Array<{ original: string; resto
       throw new Error(`Backup file not found: ${file.backup}`);
     }
 
-    const resolved = path.resolve(file.original);
+    const resolved = path.resolve(file.resolvedOriginal);
     fs.copyFileSync(backupPath, resolved);
     results.push({ original: file.original, restored: resolved });
   }

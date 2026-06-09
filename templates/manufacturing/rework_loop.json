@@ -1,0 +1,69 @@
+{
+  "name": "{{modelName}}",
+  "description": "Rework loop with conditional return to process",
+  "timeUnits": "{{timeUnits}}",
+  "replications": {{replications}},
+  "replicationLength": {{replicationLength}},
+  "entities": [
+    {
+      "id": "part",
+      "name": "{{entityName}}"
+    }
+  ],
+  "flow": [
+    {
+      "id": "Arrival",
+      "type": "create",
+      "entity": "part",
+      "arrival": {
+        "distribution": { "type": "EXPO", "params": [{{arrivalMean}}] }
+      }
+    },
+    {
+      "id": "Process",
+      "type": "process",
+      "delay": {
+        "distribution": { "type": "{{processDist}}", "params": [{{processParam1}}, {{processParam2}}] },
+        "units": "{{timeUnits}}"
+      }
+    },
+    {
+      "id": "Inspect",
+      "type": "decide",
+      "branches": [
+        { "type": "probability", "value": {{passRate}} },
+        { "type": "probability", "value": {{reworkRate}} },
+        { "type": "probability", "value": {{scrapRate}} }
+      ]
+    },
+    {
+      "id": "Ship",
+      "type": "dispose"
+    },
+    {
+      "id": "Scrap",
+      "type": "dispose"
+    }
+  ],
+  "connections": [
+    ["Arrival", "Process"],
+    ["Process", "Inspect"],
+    ["Inspect", "Ship"],
+    ["Inspect", "Process"],
+    ["Inspect", "Scrap"]
+  ],
+  "_params": {
+    "modelName": { "default": "ReworkLoop", "description": "Model name" },
+    "entityName": { "default": "Part", "description": "Entity type name" },
+    "arrivalMean": { "default": 10, "description": "Mean interarrival time" },
+    "processDist": { "default": "NORM", "description": "Process time distribution" },
+    "processParam1": { "default": 5, "description": "Distribution parameter 1 (mean for NORM)" },
+    "processParam2": { "default": 1, "description": "Distribution parameter 2 (stddev for NORM)" },
+    "passRate": { "default": 0.8, "description": "Fraction passing (0-1)" },
+    "reworkRate": { "default": 0.15, "description": "Fraction sent back to rework (0-1)" },
+    "scrapRate": { "default": 0.05, "description": "Fraction scrapped (0-1)" },
+    "timeUnits": { "default": "Minutes", "description": "Time unit" },
+    "replications": { "default": 5, "description": "Number of replications" },
+    "replicationLength": { "default": 960, "description": "Length of each replication" }
+  }
+}

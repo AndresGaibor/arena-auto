@@ -46,8 +46,10 @@ function setModuleProperty({ caption, property, value }) {
     if (!model) throw new Error("No model open");
     const m = findModule(caption);
     if (!m) throw new Error(`Module with caption "${caption}" not found`);
+    const captionBefore = m.Caption;
     m.Data(property, value);
-    return { ok: true, caption, property, value, message: "Property set" };
+    const captionAfter = m.Caption;
+    return { ok: true, captionBefore, captionAfter, property, value, message: "Property set" };
 }
 
 function listModuleProperties({ caption }) {

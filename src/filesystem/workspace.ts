@@ -6,17 +6,24 @@ export const getWorkspaceRoot = _getWorkspaceRoot;
 
 export function isPathInWorkspace(targetPath: string): { ok: true; resolved: string } | { ok: false; reason: string } {
   const workspace = getWorkspaceRoot();
-  const resolved = path.isAbsolute(targetPath)
+  const workspaceResolved = path.resolve(workspace);
+  const targetResolved = path.isAbsolute(targetPath)
     ? path.resolve(targetPath)
-    : path.join(workspace, targetPath);
+    : path.join(workspaceResolved, targetPath);
 
-  if (!path.relative(workspace, resolved).startsWith("..")) {
-    return { ok: true, resolved };
+  const relative = path.relative(workspaceResolved, targetResolved);
+
+  const inside =
+    relative === "" ||
+    (!relative.startsWith("..") && !path.isAbsolute(relative));
+
+  if (inside) {
+    return { ok: true, resolved: targetResolved };
   }
 
   return {
     ok: false,
-    reason: `Path "${targetPath}" is outside the allowed workspace. Allowed: ${workspace}`,
+    reason: `Path "${targetPath}" is outside the allowed workspace. Allowed: ${workspaceResolved}`,
   };
 }
 
@@ -25,11 +32,4 @@ export function ensureWorkspaceExists(): void {
   if (!fs.existsSync(workspace)) {
     fs.mkdirSync(workspace, { recursive: true });
   }
-}
-
-export function resolveSafePath(inputPath: string): string {
-  if (path.isAbsolute(inputPath)) {
-    return inputPath;
-  }
-  return path.join(getWorkspaceRoot(), inputPath);
 }

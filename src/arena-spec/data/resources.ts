@@ -1,8 +1,9 @@
 import type { ResourceDef } from "../schema.js";
 import type { DataStep } from "./index.js";
+import { compileFailures } from "./failures.js";
 
 export function compileResource(resource: ResourceDef): DataStep[] {
-  return [
+  const steps: DataStep[] = [
     {
       type: "createResource",
       params: {
@@ -10,9 +11,16 @@ export function compileResource(resource: ResourceDef): DataStep[] {
         name: resource.name || resource.id,
         capacity: resource.capacity,
         schedule: resource.schedule,
+        costs: resource.costs,
       },
     },
   ];
+
+  if (resource.failures && resource.failures.length > 0) {
+    steps.push(...compileFailures(resource.id, resource.failures));
+  }
+
+  return steps;
 }
 
 export function compileResources(resources: ResourceDef[]): DataStep[] {

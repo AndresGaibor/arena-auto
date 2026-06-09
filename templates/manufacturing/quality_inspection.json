@@ -1,0 +1,67 @@
+{
+  "name": "{{modelName}}",
+  "description": "Quality inspection with reject/accept decision",
+  "timeUnits": "{{timeUnits}}",
+  "replications": {{replications}},
+  "replicationLength": {{replicationLength}},
+  "entities": [
+    {
+      "id": "part",
+      "name": "{{entityName}}"
+    }
+  ],
+  "flow": [
+    {
+      "id": "Arrival",
+      "type": "create",
+      "entity": "part",
+      "arrival": {
+        "distribution": { "type": "EXPO", "params": [{{arrivalMean}}] }
+      }
+    },
+    {
+      "id": "Inspect",
+      "type": "process",
+      "delay": {
+        "distribution": { "type": "{{inspectDist}}", "params": [{{inspectParam1}}, {{inspectParam2}}, {{inspectParam3}}] },
+        "units": "{{timeUnits}}"
+      }
+    },
+    {
+      "id": "Decision",
+      "type": "decide",
+      "branches": [
+        { "type": "probability", "value": {{passRate}} },
+        { "type": "probability", "value": {{rejectRate}} }
+      ]
+    },
+    {
+      "id": "Accepted",
+      "type": "dispose"
+    },
+    {
+      "id": "Rejected",
+      "type": "dispose"
+    }
+  ],
+  "connections": [
+    ["Arrival", "Inspect"],
+    ["Inspect", "Decision"],
+    ["Decision", "Accepted"],
+    ["Decision", "Rejected"]
+  ],
+  "_params": {
+    "modelName": { "default": "QualityInspection", "description": "Model name" },
+    "entityName": { "default": "Part", "description": "Entity type name" },
+    "arrivalMean": { "default": 5, "description": "Mean interarrival time" },
+    "inspectDist": { "default": "TRIA", "description": "Inspection time distribution" },
+    "inspectParam1": { "default": 0.5, "description": "Distribution parameter 1 (min for TRIA)" },
+    "inspectParam2": { "default": 1, "description": "Distribution parameter 2 (mode for TRIA)" },
+    "inspectParam3": { "default": 1.5, "description": "Distribution parameter 3 (max for TRIA)" },
+    "passRate": { "default": 0.95, "description": "Fraction passing inspection (0-1)" },
+    "rejectRate": { "default": 0.05, "description": "Fraction rejected (0-1)" },
+    "timeUnits": { "default": "Minutes", "description": "Time unit" },
+    "replications": { "default": 5, "description": "Number of replications" },
+    "replicationLength": { "default": 480, "description": "Length of each replication" }
+  }
+}

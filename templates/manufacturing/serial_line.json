@@ -1,0 +1,100 @@
+{
+  "name": "{{modelName}}",
+  "description": "Serial production line with sequential operations",
+  "timeUnits": "{{timeUnits}}",
+  "replications": {{replications}},
+  "replicationLength": {{replicationLength}},
+  "entities": [
+    {
+      "id": "part",
+      "name": "{{entityName}}"
+    }
+  ],
+  "resources": [
+    {
+      "id": "station1",
+      "name": "{{station1Name}}",
+      "capacity": {{station1Cap}}
+    },
+    {
+      "id": "station2",
+      "name": "{{station2Name}}",
+      "capacity": {{station2Cap}}
+    },
+    {
+      "id": "station3",
+      "name": "{{station3Name}}",
+      "capacity": {{station3Cap}}
+    }
+  ],
+  "flow": [
+    {
+      "id": "Arrival",
+      "type": "create",
+      "entity": "part",
+      "arrival": {
+        "distribution": { "type": "EXPO", "params": [{{arrivalMean}}] }
+      }
+    },
+    {
+      "id": "Op1",
+      "type": "process",
+      "resource": "station1",
+      "delay": {
+        "distribution": { "type": "{{op1Dist}}", "params": [{{op1Param1}}, {{op1Param2}}] },
+        "units": "{{timeUnits}}"
+      }
+    },
+    {
+      "id": "Op2",
+      "type": "process",
+      "resource": "station2",
+      "delay": {
+        "distribution": { "type": "{{op2Dist}}", "params": [{{op2Param1}}, {{op2Param2}}] },
+        "units": "{{timeUnits}}"
+      }
+    },
+    {
+      "id": "Op3",
+      "type": "process",
+      "resource": "station3",
+      "delay": {
+        "distribution": { "type": "{{op3Dist}}", "params": [{{op3Param1}}, {{op3Param2}}] },
+        "units": "{{timeUnits}}"
+      }
+    },
+    {
+      "id": "Exit",
+      "type": "dispose"
+    }
+  ],
+  "connections": [
+    ["Arrival", "Op1"],
+    ["Op1", "Op2"],
+    ["Op2", "Op3"],
+    ["Op3", "Exit"]
+  ],
+  "_params": {
+    "modelName": { "default": "SerialLine", "description": "Model name" },
+    "entityName": { "default": "Part", "description": "Entity type name" },
+    "arrivalMean": { "default": 3, "description": "Mean interarrival time" },
+    "station1Name": { "default": "Station1", "description": "Resource 1 name" },
+    "station1Cap": { "default": 1, "description": "Resource 1 capacity" },
+    "station2Name": { "default": "Station2", "description": "Resource 2 name" },
+    "station2Cap": { "default": 1, "description": "Resource 2 capacity" },
+    "station3Name": { "default": "Station3", "description": "Resource 3 name" },
+    "station3Cap": { "default": 1, "description": "Resource 3 capacity" },
+    "op1Dist": { "default": "NORM", "description": "Operation 1 distribution" },
+    "op1Param1": { "default": 4, "description": "Op1 param 1" },
+    "op1Param2": { "default": 0.5, "description": "Op1 param 2" },
+    "op2Dist": { "default": "NORM", "description": "Operation 2 distribution" },
+    "op2Param1": { "default": 3, "description": "Op2 param 1" },
+    "op2Param2": { "default": 0.5, "description": "Op2 param 2" },
+    "op3Dist": { "default": "NORM", "description": "Operation 3 distribution" },
+    "op3Param1": { "default": 5, "description": "Op3 param 1" },
+    "op3Param2": { "default": 1, "description": "Op3 param 2" },
+    "timeUnits": { "default": "Minutes", "description": "Time unit" },
+    "replications": { "default": 5, "description": "Number of replications" },
+    "replicationLength": { "default": 960, "description": "Length of each replication" }
+  }
+}

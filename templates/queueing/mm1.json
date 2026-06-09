@@ -1,0 +1,58 @@
+{
+  "name": "{{modelName}}",
+  "description": "M/M/1 single-server queue",
+  "timeUnits": "{{timeUnits}}",
+  "replications": {{replications}},
+  "replicationLength": {{replicationLength}},
+  "entities": [
+    {
+      "id": "customer",
+      "name": "{{entityName}}"
+    }
+  ],
+  "resources": [
+    {
+      "id": "server",
+      "name": "{{resourceName}}",
+      "capacity": {{resourceCapacity}}
+    }
+  ],
+  "flow": [
+    {
+      "id": "Arrival",
+      "type": "create",
+      "entity": "customer",
+      "arrival": {
+        "distribution": { "type": "EXPO", "params": [{{arrivalMean}}] }
+      }
+    },
+    {
+      "id": "Service",
+      "type": "process",
+      "resource": "server",
+      "delay": {
+        "distribution": { "type": "EXPO", "params": [{{serviceMean}}] },
+        "units": "{{timeUnits}}"
+      }
+    },
+    {
+      "id": "Exit",
+      "type": "dispose"
+    }
+  ],
+  "connections": [
+    ["Arrival", "Service"],
+    ["Service", "Exit"]
+  ],
+  "_params": {
+    "modelName": { "default": "MM1_Queue", "description": "Model name" },
+    "entityName": { "default": "Customer", "description": "Entity type name" },
+    "resourceName": { "default": "Server", "description": "Resource name" },
+    "resourceCapacity": { "default": 1, "description": "Number of servers" },
+    "arrivalMean": { "default": 5, "description": "Mean interarrival time" },
+    "serviceMean": { "default": 4, "description": "Mean service time" },
+    "timeUnits": { "default": "Minutes", "description": "Time unit" },
+    "replications": { "default": 5, "description": "Number of replications" },
+    "replicationLength": { "default": 480, "description": "Length of each replication" }
+  }
+}
