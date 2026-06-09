@@ -1,5 +1,5 @@
 {
-  "name": "arena-mcp",
+  "name": "arena-auto-main",
   "module": "src/index.ts",
   "type": "module",
   "private": true,
@@ -11,7 +11,12 @@
   },
   "scripts": {
     "start": "bun run src/index.ts",
-    "test": "bun run src/index.ts --help"
+    "dev": "bun run --watch src/index.ts",
+    "check": "bunx tsc --noEmit",
+    "bridge:check": "node --check bridge/index.cjs",
+    "test": "bun run src/index.ts --help",
+    "test:unit": "bun test tests/unit",
+    "test:integration": "bun test tests/integration"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0"

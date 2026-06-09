@@ -4,255 +4,230 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import {
-  openArena, closeArena,
-  openModel, closeModel, createNewModel,
-  runModel,
-  getVariable, setVariable, listVariables,
-  listModules,
-  exportResults,
-  getQueueLength, getResourceState,
-  getModelInfo, exploreCom,
-  createModule,
-  getModuleProperty, setModuleProperty, listModuleProperties,
-  addConnection, saveModel,
-} from "./bridge.js";
-
-type ToolResult = {
-  content: Array<{ type: "text"; text: string }>;
-  isError?: boolean;
-};
-
-function ok(data: unknown): ToolResult {
-  return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
-}
-
-function err(msg: string): ToolResult {
-  return { content: [{ type: "text", text: msg }], isError: true };
-}
+import { allTools } from "./mcp/tools.js";
+import { ok, err } from "./mcp/responses.js";
+import { callBridge, destroyBridge } from "./bridge/client.js";
+import { BridgeError } from "./bridge/errors.js";
+import { logger } from "./utils/logger.js";
+import { readFileSafe } from "./filesystem/reader.js";
+import { applyPatch, writeFileSafe } from "./filesystem/writer.js";
+import { generateDiff, formatDiff } from "./filesystem/diff.js";
+import { createBackup, listBackups, restoreBackup } from "./filesystem/backup.js";
+import { isPathInWorkspace } from "./filesystem/workspace.js";
+import path from "path";
+import fs from "fs";
 
 const server = new Server(
-  { name: "arena-mcp", version: "0.2.0" },
+  { name: "arena-auto-main", version: "0.3.0" },
   { capabilities: { tools: {} } },
 );
 
-const tools = [
-  {
-    name: "arena_open",
-    description: "Open Arena application (COM connection)",
-    inputSchema: {
-      type: "object",
-      properties: {
-        visible: { type: "boolean", description: "Make Arena window visible", default: false },
-      },
-    },
-  },
-  {
-    name: "arena_close",
-    description: "Close Arena application and cleanup COM resources",
-    inputSchema: { type: "object", properties: {} },
-  },
-  {
-    name: "arena_open_model",
-    description: "Open a .doe Arena model file",
-    inputSchema: {
-      type: "object",
-      properties: {
-        path: { type: "string", description: "Full path to .doe file" },
-      },
-      required: ["path"],
-    },
-  },
-  {
-    name: "arena_close_model",
-    description: "Close the currently open model",
-    inputSchema: { type: "object", properties: {} },
-  },
-  {
-    name: "arena_create_new_model",
-    description: "Create a new empty Arena model",
-    inputSchema: { type: "object", properties: {} },
-  },
-  {
-    name: "arena_create_module",
-    description: "Create a module in the model (e.g. Create, Process, Dispose, Decide, Assign)",
-    inputSchema: {
-      type: "object",
-      properties: {
-        panelName: { type: "string", description: "Panel name: DiscreteProcessing, DataDefinition, Decisions, InputOutput, etc.", default: "DiscreteProcessing" },
-        moduleName: { type: "string", description: "Module type: Create, Process, Dispose, Decide, Assign, etc." },
-        x: { type: "number", description: "X position on canvas", default: 100 },
-        y: { type: "number", description: "Y position on canvas", default: 200 },
-      },
-      required: ["moduleName"],
-    },
-  },
-  {
-    name: "arena_set_module_property",
-    description: "Set a module property via Data(operandName, value). E.g. property='Name', value='MyModule'",
-    inputSchema: {
-      type: "object",
-      properties: {
-        caption: { type: "string", description: "Module caption (e.g. 'Create 1', 'Process 1')" },
-        property: { type: "string", description: "Property/operand name (e.g. 'Name', 'Entity Type', 'Value', 'Units')" },
-        value: { type: "string", description: "New value" },
-      },
-      required: ["caption", "property", "value"],
-    },
-  },
-  {
-    name: "arena_get_module_property",
-    description: "Get a module property value",
-    inputSchema: {
-      type: "object",
-      properties: {
-        caption: { type: "string", description: "Module caption" },
-        property: { type: "string", description: "Property name" },
-      },
-      required: ["caption", "property"],
-    },
-  },
-  {
-    name: "arena_list_module_properties",
-    description: "List all readable properties for a module",
-    inputSchema: {
-      type: "object",
-      properties: {
-        caption: { type: "string", description: "Module caption" },
-      },
-      required: ["caption"],
-    },
-  },
-  {
-    name: "arena_add_connection",
-    description: "Connect two modules",
-    inputSchema: {
-      type: "object",
-      properties: {
-        fromCaption: { type: "string", description: "Source module caption" },
-        toCaption: { type: "string", description: "Target module caption" },
-      },
-      required: ["fromCaption", "toCaption"],
-    },
-  },
-  {
-    name: "arena_run_model",
-    description: "Run the simulation model",
-    inputSchema: {
-      type: "object",
-      properties: {
-        batchMode: { type: "boolean", description: "Run in batch mode (no UI)", default: true },
-        quietMode: { type: "boolean", description: "Suppress dialogs", default: true },
-      },
-    },
-  },
-  {
-    name: "arena_save_model",
-    description: "Save the current model to a .doe file",
-    inputSchema: {
-      type: "object",
-      properties: {
-        path: { type: "string", description: "Save path (default: Arena documents folder)" },
-      },
-    },
-  },
-  {
-    name: "arena_get_variable",
-    description: "Read a SIMAN variable value from the model",
-    inputSchema: {
-      type: "object",
-      properties: { name: { type: "string" } },
-      required: ["name"],
-    },
-  },
-  {
-    name: "arena_set_variable",
-    description: "Set a SIMAN variable value in the model",
-    inputSchema: {
-      type: "object",
-      properties: { name: { type: "string" }, value: { type: "number" } },
-      required: ["name", "value"],
-    },
-  },
-  {
-    name: "arena_list_variables",
-    description: "List all SIMAN variables in the model",
-    inputSchema: { type: "object", properties: {} },
-  },
-  {
-    name: "arena_list_modules",
-    description: "List all modules in the model",
-    inputSchema: { type: "object", properties: {} },
-  },
-  {
-    name: "arena_export_results",
-    description: "Export simulation results report",
-    inputSchema: {
-      type: "object",
-      properties: { format: { type: "string", description: "txt, csv, xls", default: "txt" } },
-    },
-  },
-  {
-    name: "arena_get_queue_length",
-    description: "Get current queue length for a named queue",
-    inputSchema: {
-      type: "object",
-      properties: { queueName: { type: "string" } },
-      required: ["queueName"],
-    },
-  },
-  {
-    name: "arena_get_resource_state",
-    description: "Get current state of a resource",
-    inputSchema: {
-      type: "object",
-      properties: { resourceName: { type: "string" } },
-      required: ["resourceName"],
-    },
-  },
-  {
-    name: "arena_get_model_info",
-    description: "Get model info (name, simulation time, status)",
-    inputSchema: { type: "object", properties: {} },
-  },
-  {
-    name: "arena_explore_com",
-    description: "Explore COM API capabilities (panels, module definitions, etc.)",
-    inputSchema: { type: "object", properties: {} },
-  },
-];
+// Timeout mapping per operation (ms)
+const BRIDGE_TIMEOUTS: Record<string, number> = {
+  openArena: 15_000,
+  closeArena: 10_000,
+  openModel: 30_000,
+  runModel: 300_000, // 5 minutes - simulation may run long
+  exportResults: 30_000,
+  saveModel: 15_000,
+  createModule: 15_000,
+  setModuleProperty: 10_000,
+};
 
-server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools }));
+server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: allTools }));
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
+  const startTime = Date.now();
 
   try {
+    logger.info("tool_call", { tool: name, args });
+
+    let result: unknown;
+
     switch (name) {
-      case "arena_open": return ok(await openArena(args?.visible as boolean));
-      case "arena_close": return ok(await closeArena());
-      case "arena_open_model": return ok(await openModel(args?.path as string));
-      case "arena_close_model": return ok(await closeModel());
-      case "arena_create_new_model": return ok(await createNewModel());
-      case "arena_create_module": return ok(await createModule(args?.panelName as string, args?.moduleName as string, args?.x as number, args?.y as number));
-      case "arena_set_module_property": return ok(await setModuleProperty(args?.caption as string, args?.property as string, args?.value as string));
-      case "arena_get_module_property": return ok(await getModuleProperty(args?.caption as string, args?.property as string));
-      case "arena_list_module_properties": return ok(await listModuleProperties(args?.caption as string));
-      case "arena_add_connection": return ok(await addConnection(args?.fromCaption as string, args?.toCaption as string));
-      case "arena_save_model": return ok(await saveModel(args?.path as string));
-      case "arena_run_model": return ok(await runModel(args?.batchMode as boolean, args?.quietMode as boolean));
-      case "arena_get_variable": return ok(await getVariable(args?.name as string));
-      case "arena_set_variable": return ok(await setVariable(args?.name as string, args?.value as number));
-      case "arena_list_variables": return ok(await listVariables());
-      case "arena_list_modules": return ok(await listModules());
-      case "arena_export_results": return ok(await exportResults(args?.format as string));
-      case "arena_get_queue_length": return ok(await getQueueLength(args?.queueName as string));
-      case "arena_get_resource_state": return ok(await getResourceState(args?.resourceName as string));
-      case "arena_get_model_info": return ok(await getModelInfo());
-      case "arena_explore_com": return ok(await exploreCom());
-      default: return err(`Unknown tool: ${name}`);
+      // --- Arena tools ---
+      case "arena_open":
+        result = await callBridge("openArena", { visible: args?.visible ?? false }, BRIDGE_TIMEOUTS.openArena);
+        break;
+      case "arena_close":
+        result = await callBridge("closeArena", {}, BRIDGE_TIMEOUTS.closeArena);
+        destroyBridge();
+        break;
+      case "arena_open_model":
+        result = await callBridge("openModel", { path: args?.path }, BRIDGE_TIMEOUTS.openModel);
+        break;
+      case "arena_close_model":
+        result = await callBridge("closeModel");
+        break;
+      case "arena_create_new_model":
+        result = await callBridge("createNewModel");
+        break;
+      case "arena_create_module":
+        result = await callBridge("createModule", {
+          panelName: args?.panelName ?? "DiscreteProcessing",
+          moduleName: args?.moduleName,
+          x: args?.x ?? 100,
+          y: args?.y ?? 200,
+        }, BRIDGE_TIMEOUTS.createModule);
+        break;
+      case "arena_set_module_property":
+        result = await callBridge("setModuleProperty", {
+          caption: args?.caption,
+          property: args?.property,
+          value: args?.value,
+        }, BRIDGE_TIMEOUTS.setModuleProperty);
+        break;
+      case "arena_get_module_property":
+        result = await callBridge("getModuleProperty", { caption: args?.caption, property: args?.property });
+        break;
+      case "arena_list_module_properties":
+        result = await callBridge("listModuleProperties", { caption: args?.caption });
+        break;
+      case "arena_add_connection":
+        result = await callBridge("addConnection", { fromCaption: args?.fromCaption, toCaption: args?.toCaption });
+        break;
+      case "arena_save_model":
+        result = await callBridge("saveModel", { path: args?.path }, BRIDGE_TIMEOUTS.saveModel);
+        break;
+      case "arena_run_model":
+        result = await callBridge("runModel", {
+          batchMode: args?.batchMode ?? true,
+          quietMode: args?.quietMode ?? true,
+        }, BRIDGE_TIMEOUTS.runModel);
+        break;
+      case "arena_get_variable":
+        result = await callBridge("getVariable", { name: args?.name });
+        break;
+      case "arena_set_variable":
+        result = await callBridge("setVariable", { name: args?.name, value: args?.value });
+        break;
+      case "arena_list_variables":
+        result = await callBridge("listVariables");
+        break;
+      case "arena_list_modules":
+        result = await callBridge("listModules");
+        break;
+      case "arena_export_results":
+        result = await callBridge("exportResults", { format: args?.format ?? "txt" }, BRIDGE_TIMEOUTS.exportResults);
+        break;
+      case "arena_get_queue_length":
+        result = await callBridge("getQueueLength", { queueName: args?.queueName });
+        break;
+      case "arena_get_resource_state":
+        result = await callBridge("getResourceState", { resourceName: args?.resourceName });
+        break;
+      case "arena_get_model_info":
+        result = await callBridge("getModelInfo");
+        break;
+      case "arena_explore_com":
+        result = await callBridge("exploreCom");
+        break;
+
+      // --- Filesystem tools ---
+      case "file_list": {
+        const dirPath = args?.path as string;
+        const check = isPathInWorkspace(dirPath);
+        if (!check.ok) return err(check.reason);
+        const resolved = check.resolved;
+        if (!fs.existsSync(resolved)) return err(`Directory not found: ${dirPath}`);
+        const entries = fs.readdirSync(resolved, { withFileTypes: true });
+        const listing = entries.map((e) => {
+          const fullPath = path.join(resolved, e.name);
+          let stat: fs.Stats | undefined;
+          try { stat = fs.statSync(fullPath); } catch { /* ignore */ }
+          return {
+            name: e.name,
+            type: e.isDirectory() ? "directory" : "file",
+            size: stat?.size ?? 0,
+            modified: stat?.mtime.toISOString(),
+          };
+        }).sort((a, b) => a.name.localeCompare(b.name));
+        result = { path: dirPath, entries: listing, count: listing.length };
+        break;
+      }
+
+      case "file_read": {
+        const filePath = args?.path as string;
+        const maxBytes = (args?.maxBytes as number) ?? 20_000;
+        result = readFileSafe(filePath, maxBytes);
+        break;
+      }
+
+      case "file_patch": {
+        const patchResult = applyPatch(args?.path as string, args?.patches as Array<{ old: string; new: string }>, {
+          createBackup: args?.createBackup !== false,
+          dryRun: args?.dryRun === true,
+        });
+        result = patchResult;
+        break;
+      }
+
+      case "file_write": {
+        const writeResult = writeFileSafe(args?.path as string, args?.content as string, {
+          createBackup: args?.createBackup !== false,
+        });
+        result = writeResult;
+        break;
+      }
+
+      case "file_diff": {
+        const diff = generateDiff(args?.path as string, args?.newContent as string);
+        const formatted = formatDiff(diff);
+        result = {
+          path: diff.path,
+          summary: diff.summary,
+          diff: formatted,
+        };
+        break;
+      }
+
+      case "file_backup": {
+        const manifest = createBackup(args?.path as string, "file_backup");
+        result = {
+          backupId: manifest.createdAt,
+          files: manifest.files,
+        };
+        break;
+      }
+
+      case "file_restore": {
+        const restored = restoreBackup(args?.backupId as string);
+        result = {
+          restored,
+          message: `Restored ${restored.length} file(s) from backup`,
+        };
+        break;
+      }
+
+      case "file_backup_list": {
+        const backups = listBackups();
+        result = { backups };
+        break;
+      }
+
+      default:
+        return err(`Unknown tool: ${name}`);
     }
+
+    const durationMs = Date.now() - startTime;
+    logger.info("tool_result", { tool: name, durationMs, ok: true });
+
+    return ok(result);
   } catch (e) {
+    const durationMs = Date.now() - startTime;
+    logger.error("tool_error", {
+      tool: name,
+      durationMs,
+      error: e instanceof Error ? e.message : String(e),
+    });
+
+    if (e instanceof BridgeError) {
+      const message = e.code === "TIMEOUT"
+        ? `The operation exceeded the maximum allowed time.`
+        : `[${e.code}] ${e.message}`;
+      return err(message);
+    }
     return err((e as Error).message);
   }
 });
@@ -260,10 +235,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("[arena-mcp] Server running on stdio");
+  logger.info("Server started", { transport: "stdio" });
 }
 
 main().catch((e) => {
-  console.error("[arena-mcp] Fatal:", e);
+  logger.error("Fatal startup error", { error: (e as Error).message });
   process.exit(1);
 });
