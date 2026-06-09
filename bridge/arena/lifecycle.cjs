@@ -39,6 +39,14 @@ function hasModel() {
     return model !== null;
 }
 
+function peekArena() {
+    return arena;
+}
+
+function peekModel() {
+    return model;
+}
+
 module.exports = {
     ActiveXObject,
     getArena,
@@ -49,4 +57,6 @@ module.exports = {
     clearArena,
     hasArena,
     hasModel,
+    peekArena,
+    peekModel,
 };

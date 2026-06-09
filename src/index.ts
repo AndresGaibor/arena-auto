@@ -13,7 +13,7 @@ import { readFileSafe } from "./filesystem/reader.js";
 import { applyPatch, writeFileSafe } from "./filesystem/writer.js";
 import { generateDiff, formatDiff } from "./filesystem/diff.js";
 import { createBackup, listBackups, restoreBackup } from "./filesystem/backup.js";
-import { isPathInWorkspace } from "./filesystem/workspace.js";
+import { isPathInWorkspace, resolveSafePath, getWorkspaceRoot } from "./filesystem/workspace.js";
 import { compileSpec } from "./arena-spec/compiler.js";
 import { validateSpec } from "./arena-spec/validator.js";
 import type { ArenaModelSpec } from "./arena-spec/schema.js";
@@ -188,7 +188,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "file_backup": {
         const manifest = createBackup(args?.path as string, "file_backup");
         result = {
-          backupId: manifest.createdAt,
+          backupId: manifest.id,
           files: manifest.files,
         };
         break;
@@ -219,33 +219,67 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "arena_build_model": {
         const spec = args?.spec as ArenaModelSpec;
-        const saveAs = args?.saveAs as string | undefined;
+        const rawSaveAs = args?.saveAs as string | undefined;
         const runAfter = args?.runAfterBuild === true;
 
-        // 1. Validate
+        // 1. Validate spec
         const validation = validateSpec(spec);
         if (!validation.valid) {
           return err(`Spec validation failed:\n${validation.errors.map((e) => `  - ${e}`).join("\n")}`);
         }
 
-        // 2. Compile to build plan
-        const plan = compileSpec(spec, saveAs);
+        // 2. Validate saveAs path
+        let resolvedSavePath: string | undefined;
+        if (rawSaveAs) {
+          const check = isPathInWorkspace(rawSaveAs);
+          if (!check.ok) return err(check.reason);
+          resolvedSavePath = check.resolved;
+        }
 
-        // 3. Execute build plan
+        // 3. Compile to build plan
+        const plan = compileSpec(spec, resolvedSavePath);
+
+        // 4. Execute build plan
         await callBridge("openArena", { visible: false }, BRIDGE_TIMEOUTS.openArena);
         await callBridge("createNewModel");
 
+        // Track real captions from Arena (Arena may assign "Create 1", not spec id)
+        const moduleCaptions = new Map<string, string>();
+
         for (const step of plan.steps) {
           switch (step.type) {
-            case "createModule":
-              await callBridge("createModule", step.params, BRIDGE_TIMEOUTS.createModule);
+            case "createModule": {
+              const created = await callBridge("createModule", step.params, BRIDGE_TIMEOUTS.createModule) as { caption?: string };
+              const specRef = step.moduleRef;
+              if (specRef && created?.caption) {
+                moduleCaptions.set(specRef, created.caption);
+              }
               break;
-            case "setProperty":
-              await callBridge("setModuleProperty", step.params, BRIDGE_TIMEOUTS.setModuleProperty);
+            }
+            case "setProperty": {
+              // Use real caption if available, then fall back to spec id
+              const specCaption = step.params.caption as string;
+              const realCaption = moduleCaptions.get(specCaption) || specCaption;
+              await callBridge("setModuleProperty", {
+                ...step.params,
+                caption: realCaption,
+              }, BRIDGE_TIMEOUTS.setModuleProperty);
+              // If we just set Name = specCaption, update the caption map
+              if (step.params.property === "Name") {
+                moduleCaptions.set(specCaption, specCaption);
+              }
               break;
-            case "addConnection":
-              await callBridge("addConnection", step.params);
+            }
+            case "addConnection": {
+              // Resolve both from/to using real captions
+              const fromId = step.params.fromCaption as string;
+              const toId = step.params.toCaption as string;
+              await callBridge("addConnection", {
+                fromCaption: moduleCaptions.get(fromId) || fromId,
+                toCaption: moduleCaptions.get(toId) || toId,
+              });
               break;
+            }
             case "setReplicationLength":
               await callBridge("setReplicationLength", step.params);
               break;
@@ -253,13 +287,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               await callBridge("saveModel", step.params, BRIDGE_TIMEOUTS.saveModel);
               break;
             case "createEntity":
+              await callBridge("createEntity", step.params);
+              break;
             case "createResource":
-              // Data module operations - currently placeholder
+              await callBridge("createResource", step.params);
               break;
           }
         }
 
-        // 4. Run if requested
+        // 5. Run if requested
         if (runAfter) {
           await callBridge("runModel", { batchMode: true, quietMode: true }, BRIDGE_TIMEOUTS.runModel);
         }
@@ -268,7 +304,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           modelName: spec.name,
           modules: plan.modules,
           steps: plan.steps.length,
-          savedAs: saveAs || `${spec.name}.doe`,
+          savedAs: resolvedSavePath || `${spec.name}.doe`,
           ranSimulation: runAfter,
           warnings: validation.warnings,
         };

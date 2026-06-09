@@ -1,6 +1,8 @@
 import path from "path";
 import fs from "fs";
-import { getWorkspaceRoot } from "../utils/paths.js";
+import { getWorkspaceRoot as _getWorkspaceRoot } from "../utils/paths.js";
+
+export const getWorkspaceRoot = _getWorkspaceRoot;
 
 export function isPathInWorkspace(targetPath: string): { ok: true; resolved: string } | { ok: false; reason: string } {
   const workspace = getWorkspaceRoot();

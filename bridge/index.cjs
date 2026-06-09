@@ -4,6 +4,7 @@ const models = require("./arena/models.cjs");
 const modules = require("./arena/modules.cjs");
 const simulation = require("./arena/simulation.cjs");
 const results = require("./arena/results.cjs");
+const data = require("./arena/data.cjs");
 
 const handlers = {
     // --- Arena lifecycle ---
@@ -15,11 +16,11 @@ const handlers = {
     },
 
     closeArena() {
-        if (lifecycle.getModel()) {
-            try { lifecycle.getModel().End(); } catch {}
+        if (lifecycle.peekModel()) {
+            try { lifecycle.peekModel().End(); } catch {}
             lifecycle.clearModel();
         }
-        const arena = lifecycle.getArena();
+        const arena = lifecycle.peekArena();
         if (arena) {
             try { arena.Quit(); } catch {}
             lifecycle.clearArena();
@@ -46,6 +47,10 @@ const handlers = {
     // --- Simulation ---
     runModel: simulation.runModel,
     setReplicationLength: simulation.setReplicationLength,
+
+    // --- Data ---
+    createResource: data.createResource,
+    createEntity: data.createEntity,
 
     // --- Results ---
     getModelResults: results.getModelResults,
@@ -107,7 +112,7 @@ function respond(msg) {
 }
 
 process.stdin.on("end", () => {
-    const arena = lifecycle.getArena();
+    const arena = lifecycle.peekArena();
     if (arena) { try { arena.Quit(); } catch {} }
     process.exit(0);
 });
